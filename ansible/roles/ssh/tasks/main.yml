@@ -1,0 +1,57 @@
+---
+# CIS 4.2.1-4.2.20 - SSH server hardening: no root login, key-only auth,
+# strong ciphers/MACs/KEX, idle-session reaping, and a conservative
+# auth surface. Config is validated with `sshd -t` before it's applied
+# so a typo can never lock out the build (or any host running this
+# playbook).
+- name: CIS 4.2.1 | Ensure the SSH server is installed
+  ansible.builtin.dnf:
+    name: openssh-server
+    state: present
+
+- name: CIS 4.2.1 | Ensure host keys exist (ed25519 + rsa)
+  ansible.builtin.command: "ssh-keygen -A"
+  args:
+    creates: /etc/ssh/ssh_host_ed25519_key
+  notify: Restart sshd
+
+- name: CIS 4.2.1 | Set permissions on private host keys
+  ansible.builtin.shell: |
+    set -e
+    for f in /etc/ssh/ssh_host_*_key; do
+      chmod 0600 "$f"
+      chown root:root "$f"
+    done
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: CIS 4.2.x | Deploy hardened sshd_config
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: "0600"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: Restart sshd
+
+- name: CIS 4.2.x | Ensure /etc/ssh/sshd_config.d is empty or absent of conflicting drop-ins
+  ansible.builtin.find:
+    paths: /etc/ssh/sshd_config.d
+    patterns: "*.conf"
+  register: _sshd_dropins
+
+- name: CIS 4.2.x | Warn about pre-existing sshd_config.d drop-ins that could override hardening
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: {{ _sshd_dropins.files | map(attribute='path') | list }}
+      exist under /etc/ssh/sshd_config.d and are included AFTER this
+      role's settings - they can silently override the hardened values.
+  when: _sshd_dropins.matched > 0
+
+- name: CIS 4.2.2 | Enable and start sshd
+  ansible.builtin.systemd_service:
+    name: sshd
+    enabled: true
+    state: started

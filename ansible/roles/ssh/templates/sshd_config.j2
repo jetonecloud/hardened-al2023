@@ -1,0 +1,83 @@
+## {{ ansible_managed }}
+## Managed by the hardened-al2023 ssh role. Hand edits will be
+## overwritten on the next run. See ansible/roles/ssh/defaults/main.yml
+## to change these values.
+
+# CIS 4.2.4
+Port {{ ssh_port }}
+AddressFamily inet
+ListenAddress 0.0.0.0
+
+# CIS 4.2.1 host keys
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKeyAlgorithms {{ ssh_host_key_algorithms | join(',') }}
+
+# CIS 4.2.13 strong crypto only
+Ciphers {{ ssh_ciphers | join(',') }}
+MACs {{ ssh_macs | join(',') }}
+KexAlgorithms {{ ssh_kex_algorithms | join(',') }}
+
+# CIS 4.2.10 - no root login
+PermitRootLogin {{ ssh_permit_root_login }}
+
+# CIS 4.2.x - key-only authentication, no passwords, no empty passwords
+PubkeyAuthentication {{ ssh_pubkey_authentication }}
+PasswordAuthentication {{ ssh_password_authentication }}
+PermitEmptyPasswords {{ ssh_permit_empty_passwords }}
+KbdInteractiveAuthentication no
+
+# CIS 4.2.8/4.2.9 - no rhosts-style trust
+IgnoreRhosts {{ ssh_ignore_rhosts }}
+HostbasedAuthentication {{ ssh_hostbased_authentication }}
+
+# CIS 4.2.17
+UsePAM {{ ssh_use_pam }}
+
+# CIS 4.2.12
+PermitUserEnvironment {{ ssh_permit_user_environment }}
+
+# CIS 4.2.6
+X11Forwarding {{ ssh_x11_forwarding }}
+
+# CIS 4.2.20 (and agent forwarding, extra hardening beyond the baseline)
+AllowTcpForwarding {{ ssh_allow_tcp_forwarding }}
+AllowAgentForwarding {{ ssh_allow_agent_forwarding }}
+AllowStreamLocalForwarding no
+GatewayPorts no
+PermitTunnel no
+
+# CIS 4.2.19
+Compression {{ ssh_compression }}
+
+# CIS 4.2.7
+MaxAuthTries {{ ssh_max_auth_tries }}
+
+# CIS 4.2.18
+MaxSessions {{ ssh_max_sessions }}
+MaxStartups {{ ssh_max_startups }}
+
+# CIS 4.2.15
+LoginGraceTime {{ ssh_login_grace_time }}
+
+# CIS 4.2.14 - idle session reaping (client_alive_count_max 0 means a
+# single missed keepalive drops the session; interval below in seconds)
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+# CIS 4.2.5
+LogLevel {{ ssh_log_level }}
+
+# CIS 4.2.16
+Banner /etc/issue.net
+
+{% if ssh_allow_groups | length > 0 %}
+AllowGroups {{ ssh_allow_groups | join(' ') }}
+{% endif %}
+
+PrintMotd no
+PrintLastLog yes
+TCPKeepAlive yes
+UseDNS no
+
+Subsystem sftp /usr/libexec/openssh/sftp-server

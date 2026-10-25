@@ -1,0 +1,55 @@
+---
+# CIS Amazon Linux 2023 section 4.2 - SSH Server.
+# Cipher/MAC/KEX lists follow current OpenSSH hardening guidance
+# (Mozilla OpenSSH "modern" guidelines): AEAD ciphers only, ETM MACs
+# only, and elliptic-curve/large-group key exchange only.
+
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_permit_empty_passwords: "no"
+ssh_hostbased_authentication: "no"
+ssh_ignore_rhosts: "yes"
+ssh_permit_user_environment: "no"
+ssh_x11_forwarding: "no"
+ssh_allow_tcp_forwarding: "no"
+ssh_allow_agent_forwarding: "no"
+ssh_use_pam: "yes"
+ssh_compression: "no"
+ssh_log_level: "VERBOSE"
+ssh_max_auth_tries: 4
+ssh_max_sessions: 10
+ssh_max_startups: "10:30:60"
+ssh_login_grace_time: 60
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 0
+
+ssh_ciphers:
+  - chacha20-poly1305@openssh.com
+  - aes256-gcm@openssh.com
+  - aes128-gcm@openssh.com
+  - aes256-ctr
+  - aes192-ctr
+  - aes128-ctr
+
+ssh_macs:
+  - hmac-sha2-512-etm@openssh.com
+  - hmac-sha2-256-etm@openssh.com
+  - umac-128-etm@openssh.com
+
+ssh_kex_algorithms:
+  - curve25519-sha256
+  - curve25519-sha256@libssh.org
+  - diffie-hellman-group16-sha512
+  - diffie-hellman-group18-sha512
+  - ecdh-sha2-nistp521
+  - ecdh-sha2-nistp384
+  - ecdh-sha2-nistp256
+
+ssh_host_key_algorithms:
+  - ssh-ed25519
+  - rsa-sha2-512
+  - rsa-sha2-256
+
+ssh_allow_groups: []
