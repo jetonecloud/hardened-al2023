@@ -1,0 +1,52 @@
+{
+  "agent": {
+    "metrics_collection_interval": {{ logging_cloudwatch_metrics_interval }},
+    "logfile": "/opt/aws/amazon-cloudwatch-agent/logs/amazon-cloudwatch-agent.log"
+  },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+{% for f in logging_cloudwatch_log_files %}
+          {
+            "file_path": "{{ f.path }}",
+            "log_group_name": "{{ logging_cloudwatch_log_group_prefix }}/{{ f.log_stream }}",
+            "log_stream_name": "{instance_id}",
+            "retention_in_days": 90
+          }{{ "," if not loop.last else "" }}
+{% endfor %}
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "namespace": "HardenedAL2023",
+    "append_dimensions": {
+      "InstanceId": "${aws:InstanceId}"
+    },
+    "metrics_collected": {
+      "cpu": {
+        "measurement": ["cpu_usage_idle", "cpu_usage_iowait", "cpu_usage_user", "cpu_usage_system"],
+        "metrics_collection_interval": {{ logging_cloudwatch_metrics_interval }},
+        "totalcpu": true
+      },
+      "mem": {
+        "measurement": ["mem_used_percent"],
+        "metrics_collection_interval": {{ logging_cloudwatch_metrics_interval }}
+      },
+      "disk": {
+        "measurement": ["used_percent"],
+        "metrics_collection_interval": {{ logging_cloudwatch_metrics_interval }},
+        "resources": ["/"]
+      },
+      "diskio": {
+        "measurement": ["io_time"],
+        "metrics_collection_interval": {{ logging_cloudwatch_metrics_interval }}
+      },
+      "netstat": {
+        "measurement": ["tcp_established", "tcp_time_wait"],
+        "metrics_collection_interval": {{ logging_cloudwatch_metrics_interval }}
+      }
+    }
+  }
+}

@@ -1,0 +1,92 @@
+---
+# CIS 5.1.1.x (rsyslog), 5.1.2.x (journald), 5.3 (logrotate), plus the
+# CloudWatch Logs/metrics agent required by this project.
+#
+# Skipped (see docs/controls.md): 5.1.1.6 (remote rsyslog target) and
+# 5.1.2.1.1-5.1.2.1.4 (systemd-journal-remote) - this project ships logs
+# off-box via CloudWatch Logs instead of a self-managed remote
+# rsyslog/journal-remote endpoint.
+- name: CIS 5.1.1.1 | Install rsyslog
+  ansible.builtin.dnf:
+    name: rsyslog
+    state: present
+
+- name: CIS 5.1.1.3/5.1.1.4 | Harden rsyslog default file/dir permissions
+  ansible.builtin.template:
+    src: rsyslog-hardening.conf.j2
+    dest: /etc/rsyslog.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart rsyslog
+
+- name: CIS 5.1.1.2 | Enable and start rsyslog
+  ansible.builtin.systemd_service:
+    name: rsyslog
+    enabled: true
+    state: started
+
+- name: CIS 5.1.2.2-5.1.2.6 | Harden journald configuration
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: CIS 5.1.2.2-5.1.2.6 | Deploy journald hardening drop-in
+  ansible.builtin.template:
+    src: journald-hardening.conf.j2
+    dest: /etc/systemd/journald.conf.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-journald
+
+- name: CIS 5.3 | Ensure logrotate is installed
+  ansible.builtin.dnf:
+    name: logrotate
+    state: present
+
+- name: CIS 5.3 | Deploy logrotate hardening drop-in
+  ansible.builtin.template:
+    src: logrotate-hardening.conf.j2
+    dest: /etc/logrotate.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install amazon-cloudwatch-agent
+  ansible.builtin.dnf:
+    name: amazon-cloudwatch-agent
+    state: present
+
+- name: Create CloudWatch Agent config directory
+  ansible.builtin.file:
+    path: /opt/aws/amazon-cloudwatch-agent/etc
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy CloudWatch Agent configuration
+  ansible.builtin.template:
+    src: amazon-cloudwatch-agent.json.j2
+    dest: /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+    owner: root
+    group: root
+    mode: "0644"
+  register: _cwagent_config
+
+- name: Apply and enable the CloudWatch Agent configuration
+  ansible.builtin.command: >-
+    /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl
+    -a fetch-config -m ec2
+    -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+    -s
+  when: _cwagent_config.changed
+
+- name: Ensure amazon-cloudwatch-agent is enabled
+  ansible.builtin.systemd_service:
+    name: amazon-cloudwatch-agent
+    enabled: true

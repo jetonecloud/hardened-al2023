@@ -1,0 +1,21 @@
+---
+# CIS Amazon Linux 2023 section 5.1 (rsyslog/journald) and 5.3
+# (logrotate), plus the CloudWatch Logs/metrics agent.
+
+logging_rsyslog_file_create_mode: "0640"
+logging_rsyslog_dir_create_mode: "0750"
+
+logging_journald_max_use: "500M"
+logging_journald_compress: true
+logging_journald_forward_to_syslog: true
+
+# CloudWatch Agent: log files shipped off-box and basic host metrics.
+# Ship to CloudWatch Logs instead of a remote syslog/journal-remote
+# target (CIS 5.1.1.6 and 5.1.2.1.x) - see docs/controls.md.
+logging_cloudwatch_log_group_prefix: "/hardened-al2023"
+logging_cloudwatch_log_files:
+  - { path: /var/log/messages, log_stream: messages }
+  - { path: /var/log/secure, log_stream: secure }
+  - { path: /var/log/audit/audit.log, log_stream: audit }
+  - { path: /var/log/cloud-init.log, log_stream: cloud-init }
+logging_cloudwatch_metrics_interval: 60

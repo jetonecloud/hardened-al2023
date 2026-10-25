@@ -1,0 +1,7 @@
+## {{ ansible_managed }}
+## CIS 5.1.1.3/5.1.1.4 - restrictive default file/directory permissions
+## for anything rsyslog creates. CIS 5.1.1.7: we do not load imtcp/imudp
+## here, so rsyslog never accepts remote log traffic on this host.
+$FileCreateMode {{ logging_rsyslog_file_create_mode }}
+$DirCreateMode {{ logging_rsyslog_dir_create_mode }}
+$Umask 0022

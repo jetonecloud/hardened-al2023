@@ -1,0 +1,7 @@
+## {{ ansible_managed }}
+## CIS 5.1.2.2-5.1.2.6
+[Journal]
+Storage=persistent
+Compress={{ logging_journald_compress | ternary('yes', 'no') }}
+ForwardToSyslog={{ logging_journald_forward_to_syslog | ternary('yes', 'no') }}
+SystemMaxUse={{ logging_journald_max_use }}

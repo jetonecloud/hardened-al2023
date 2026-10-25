@@ -1,0 +1,10 @@
+## {{ ansible_managed }}
+## CIS 5.3 - sane, bounded log rotation defaults for files this project adds.
+/var/log/sudo.log {
+    missingok
+    notifempty
+    compress
+    weekly
+    rotate 12
+    create 0600 root root
+}
