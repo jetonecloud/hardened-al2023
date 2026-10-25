@@ -1,0 +1,89 @@
+## {{ ansible_managed }}
+## CIS 5.2.3.x / 5.2.4.x audit rules.
+## Loaded via `augenrules --load` (merges everything in
+## /etc/audit/rules.d/ in lexical order into /etc/audit/audit.rules).
+
+## Delete all existing rules before loading this file.
+-D
+
+## Buffer size (events/sec headroom before the kernel starts dropping).
+-b 8192
+-f 1
+
+## CIS 5.2.3.1 - time-change
+-a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time-change
+-a always,exit -F arch=b32 -S adjtimex,settimeofday,clock_settime -k time-change
+-w /etc/localtime -p wa -k time-change
+
+## CIS 5.2.3.2/5.2.4.9 - identity
+-w /etc/group -p wa -k identity
+-w /etc/passwd -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/security/opasswd -p wa -k identity
+
+## CIS 5.2.3.12 - system-locale / network config changes
+-a always,exit -F arch=b64 -S sethostname,setdomainname -k system-locale
+-a always,exit -F arch=b32 -S sethostname,setdomainname -k system-locale
+-w /etc/issue -p wa -k system-locale
+-w /etc/issue.net -p wa -k system-locale
+-w /etc/hosts -p wa -k system-locale
+-w /etc/sysconfig/network -p wa -k system-locale
+-w /etc/sysconfig/network-scripts -p wa -k system-locale
+
+## CIS 5.2.3.13 - MAC policy changes
+-w /etc/selinux -p wa -k MAC-policy
+-w /usr/share/selinux -p wa -k MAC-policy
+
+## CIS 5.2.3.14 - login/logout events
+-w /var/log/lastlog -p wa -k logins
+-w /var/run/faillock -p wa -k logins
+
+## CIS 5.2.3.4/5.2.3.15 - session initiation
+-w /var/run/utmp -p wa -k session
+-w /var/log/wtmp -p wa -k session
+-w /var/log/btmp -p wa -k session
+
+## CIS 5.2.3.5/5.2.3.16 - discretionary access control permission changes
+-a always,exit -F arch=b64 -S chmod,fchmod,fchmodat -F auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b32 -S chmod,fchmod,fchmodat -F auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b64 -S chown,fchown,fchownat,lchown -F auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b32 -S chown,fchown,fchownat,lchown -F auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b64 -S setxattr,lsetxattr,fsetxattr,removexattr,lremovexattr,fremovexattr -F auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b32 -S setxattr,lsetxattr,fsetxattr,removexattr,lremovexattr,fremovexattr -F auid>=1000 -F auid!=4294967295 -k perm_mod
+
+## CIS 5.2.3.3/5.2.3.17 - unsuccessful unauthorized file access attempts
+-a always,exit -F arch=b64 -S open,openat,creat,truncate,ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access
+-a always,exit -F arch=b32 -S open,openat,creat,truncate,ftruncate -F exit=-EACCES -F auid>=1000 -F auid!=4294967295 -k access
+-a always,exit -F arch=b64 -S open,openat,creat,truncate,ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access
+-a always,exit -F arch=b32 -S open,openat,creat,truncate,ftruncate -F exit=-EPERM -F auid>=1000 -F auid!=4294967295 -k access
+
+## CIS 5.2.3.18 - successful and unsuccessful mount operations
+-a always,exit -F arch=b64 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts
+-a always,exit -F arch=b32 -S mount -F auid>=1000 -F auid!=4294967295 -k mounts
+
+## CIS 5.2.3.7/5.2.3.11/5.2.3.19 - file deletion by users
+-a always,exit -F arch=b64 -S unlink,unlinkat,rename,renameat -F auid>=1000 -F auid!=4294967295 -k delete
+-a always,exit -F arch=b32 -S unlink,unlinkat,rename,renameat -F auid>=1000 -F auid!=4294967295 -k delete
+
+## CIS 5.2.3.9/5.2.3.21 - kernel module loading/unloading
+-a always,exit -F arch=b64 -S init_module,finit_module,delete_module,create_module -k modules
+-a always,exit -F arch=b32 -S init_module,finit_module,delete_module,create_module -k modules
+-w /etc/modprobe.d -p wa -k modules
+-w /etc/modules-load.d -p wa -k modules
+
+## CIS 5.2.4.1/5.2.4.2 - sudoers and privilege escalation config
+-w /etc/sudoers -p wa -k actions
+-w /etc/sudoers.d -p wa -k actions
+-w /var/log/sudo.log -p wa -k actions
+
+## CIS 5.2.3.6/5.2.4.6/5.2.4.10 - use of privileged (setuid/setgid) commands,
+## discovered at provisioning time (see tasks/main.yml).
+{% for bin in _suid_sgid_binaries.stdout_lines %}
+-a always,exit -F path={{ bin }} -F perm=x -F auid>=1000 -F auid!=4294967295 -k privileged
+{% endfor %}
+
+## Make the configuration immutable until the next reboot.
+{% if auditd_make_immutable %}
+-e 2
+{% endif %}

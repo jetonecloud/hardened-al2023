@@ -1,0 +1,17 @@
+---
+- name: Restart auditd
+  ansible.builtin.systemd_service:
+    name: auditd
+    state: restarted
+
+- name: Load audit rules
+  ansible.builtin.command: augenrules --load
+  register: _augenrules_load
+  changed_when: "'no change' not in _augenrules_load.stdout"
+  # If the previous run already set `-e 2` (immutable) in this same boot,
+  # reloading fails with "Operation not permitted" - that failure is
+  # itself proof the hardening is already in effect, so we don't treat
+  # it as an error.
+  failed_when:
+    - _augenrules_load.rc != 0
+    - "'Operation not permitted' not in _augenrules_load.stderr"

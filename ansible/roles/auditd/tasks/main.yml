@@ -1,0 +1,44 @@
+---
+# CIS 5.2.1.x-5.2.4.x - auditd install, storage policy, and rules.
+- name: CIS 5.2.1.1 | Install audit packages
+  ansible.builtin.dnf:
+    name:
+      - audit
+      - audit-libs
+    state: present
+
+- name: CIS 5.2.1.4/5.2.2.x | Configure auditd.conf (storage + disk-full behavior)
+  ansible.builtin.template:
+    src: auditd.conf.j2
+    dest: /etc/audit/auditd.conf
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Restart auditd
+
+- name: CIS 5.2.3.x/5.2.4.x | Discover setuid/setgid binaries for privileged-command auditing
+  ansible.builtin.shell: |
+    set -o pipefail
+    find / -xdev -type f \( -perm -4000 -o -perm -2000 \) 2>/dev/null
+  args:
+    executable: /bin/bash
+  changed_when: false
+  register: _suid_sgid_binaries
+
+- name: CIS 5.2.3.x/5.2.4.x | Render audit rules (includes discovered privileged binaries)
+  ansible.builtin.template:
+    src: hardening.rules.j2
+    dest: /etc/audit/rules.d/hardening.rules
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Load audit rules
+
+- name: CIS 5.2.1.2 | Enable and start auditd
+  ansible.builtin.systemd_service:
+    name: auditd
+    enabled: true
+    state: started
+
+- name: Flush handlers so audit rules are active before later roles run
+  ansible.builtin.meta: flush_handlers
