@@ -1,0 +1,24 @@
+---
+# CIS Amazon Linux 2023 section 3 - Network.
+
+# CIS 3.1.1-3.1.4
+network_blacklist_modules:
+  - dccp
+  - sctp
+  - rds
+  - tipc
+
+# CIS 3.1.5/3.3.9 - disabled by default. Many VPCs run dual-stack or
+# IPv6-only subnets; blindly disabling IPv6 here could cut off SSM/agent
+# connectivity on those networks. Flip to true if you know your fleet is
+# IPv4-only.
+network_disable_ipv6: false
+
+# CIS 3.4.1.1/3.4.2.1 - firewalld default zone. "drop" silently discards
+# all unsolicited inbound traffic (stateful - replies to connections this
+# host initiates still work); the services/ports below are the only
+# exceptions.
+network_firewalld_default_zone: "drop"
+network_firewalld_allowed_services:
+  - ssh
+network_firewalld_allowed_ports: []

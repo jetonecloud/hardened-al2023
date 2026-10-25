@@ -1,0 +1,49 @@
+## {{ ansible_managed }}
+## CIS 3.2.x / 3.3.x - network parameter hardening.
+
+# CIS 3.2.1 - disable source-routed packet acceptance
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+net.ipv6.conf.all.accept_source_route = 0
+net.ipv6.conf.default.accept_source_route = 0
+
+# CIS 3.2.2/3.3.2 - do not accept ICMP redirects
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+
+# CIS 3.3.1 - do not act as a router
+net.ipv4.ip_forward = 0
+net.ipv6.conf.all.forwarding = 0
+
+# CIS 3.3.3 - do not accept secure ICMP redirects
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.secure_redirects = 0
+
+# CIS 3.3.4 - log packets with impossible/spoofed source addresses
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.default.log_martians = 1
+
+# CIS 3.3.5 - ignore broadcast ICMP (anti-smurf)
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+
+# CIS 3.3.6 - ignore bogus ICMP error responses
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+
+# CIS 3.3.7 - enable strict reverse path filtering
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+# CIS 3.3.8 - SYN flood protection
+net.ipv4.tcp_syncookies = 1
+
+# CIS 3.3.9 - ignore IPv6 router advertisements on a host that isn't a router
+net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.default.accept_ra = 0
+
+{% if network_disable_ipv6 %}
+# CIS 3.1.5 - IPv6 disabled (network_disable_ipv6=true)
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+{% endif %}

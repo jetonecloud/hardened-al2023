@@ -1,0 +1,66 @@
+---
+# CIS 3.1.x-3.4.x - uncommon protocol modules, network sysctl parameters,
+# and a default-deny host firewall. SSH stays explicitly allowed so
+# neither this build nor any host running this playbook gets locked out.
+- name: CIS 3.1.1-3.1.4 | Blacklist uncommon network protocol kernel modules
+  ansible.builtin.template:
+    src: modprobe-blacklist-net.conf.j2
+    dest: /etc/modprobe.d/hardening-blacklist-net.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: CIS 3.1.1-3.1.4 | Ensure blacklisted protocol modules are not currently loaded
+  ansible.builtin.command: "modprobe -r {{ item }}"
+  loop: "{{ network_blacklist_modules }}"
+  register: _modprobe_remove_net
+  changed_when: _modprobe_remove_net.rc == 0
+  failed_when: false
+
+- name: CIS 3.2.x/3.3.x | Apply network parameter hardening
+  ansible.builtin.template:
+    src: sysctl-network.conf.j2
+    dest: /etc/sysctl.d/60-hardening-network.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sysctl
+
+- name: CIS 3.4.1.1 | Install firewalld
+  ansible.builtin.dnf:
+    name: firewalld
+    state: present
+
+- name: CIS 3.4.1.1 | Enable and start firewalld
+  ansible.builtin.systemd_service:
+    name: firewalld
+    enabled: true
+    state: started
+
+- name: CIS 3.4.2.1 | Set the default firewalld zone
+  ansible.builtin.command: "firewall-cmd --set-default-zone={{ network_firewalld_default_zone }}"
+  register: _fw_zone
+  changed_when: "'default zone' not in _fw_zone.stdout | lower"
+
+- name: CIS 3.4.2.x | Allow required services through the default zone
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    zone: "{{ network_firewalld_default_zone }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ network_firewalld_allowed_services }}"
+
+- name: CIS 3.4.2.x | Allow required ports through the default zone
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    zone: "{{ network_firewalld_default_zone }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ network_firewalld_allowed_ports }}"
+
+- name: CIS 3.4.2.7 | Ensure firewalld is not masked
+  ansible.builtin.command: systemctl unmask firewalld
+  register: _fw_unmask
+  changed_when: "'Removed' in _fw_unmask.stdout"
