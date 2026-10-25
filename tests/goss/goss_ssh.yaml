@@ -1,0 +1,86 @@
+## Verifies the ssh role (CIS 4.2.x). Checks are run against the live,
+## effective sshd configuration (`sshd -T`) rather than grepping the raw
+## file, so defaults and formatting differences can't mask a failure.
+service:
+  sshd:
+    enabled: true
+    running: true
+
+port:
+  tcp:22:
+    listening: true
+    ip:
+      - "0.0.0.0"
+
+file:
+  /etc/ssh/sshd_config:
+    exists: true
+    owner: root
+    group: root
+    filemode: "0600"
+
+command:
+  "sshd -T | grep -i '^permitrootlogin'":
+    exit-status: 0
+    stdout:
+      - "(?i)permitrootlogin\\s+no"
+
+  "sshd -T | grep -i '^passwordauthentication'":
+    exit-status: 0
+    stdout:
+      - "(?i)passwordauthentication\\s+no"
+
+  "sshd -T | grep -i '^permitemptypasswords'":
+    exit-status: 0
+    stdout:
+      - "(?i)permitemptypasswords\\s+no"
+
+  "sshd -T | grep -i '^x11forwarding'":
+    exit-status: 0
+    stdout:
+      - "(?i)x11forwarding\\s+no"
+
+  "sshd -T | grep -i '^allowtcpforwarding'":
+    exit-status: 0
+    stdout:
+      - "(?i)allowtcpforwarding\\s+no"
+
+  "sshd -T | grep -i '^maxauthtries'":
+    exit-status: 0
+    stdout:
+      - "(?i)maxauthtries\\s+4"
+
+  "sshd -T | grep -i '^clientaliveinterval'":
+    exit-status: 0
+    stdout:
+      - "(?i)clientaliveinterval\\s+300"
+
+  "sshd -T | grep -i '^clientalivecountmax'":
+    exit-status: 0
+    stdout:
+      - "(?i)clientalivecountmax\\s+0"
+
+  "sshd -T | grep -i '^usepam'":
+    exit-status: 0
+    stdout:
+      - "(?i)usepam\\s+yes"
+
+  "sshd -T | grep -i '^compression'":
+    exit-status: 0
+    stdout:
+      - "(?i)compression\\s+no"
+
+  "sshd -T | grep -i '^banner'":
+    exit-status: 0
+    stdout:
+      - "(?i)banner\\s+/etc/issue.net"
+
+  "sshd -T | grep -i '^ciphers'":
+    exit-status: 0
+    stdout:
+      - "chacha20-poly1305@openssh.com"
+
+  "sshd -T | grep -i '^macs'":
+    exit-status: 0
+    stdout:
+      - "etm@openssh.com"

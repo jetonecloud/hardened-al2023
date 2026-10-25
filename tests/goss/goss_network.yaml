@@ -1,0 +1,43 @@
+## Verifies the network role (CIS 3.1.x-3.4.x).
+kernel-param:
+  net.ipv4.ip_forward:
+    value: "0"
+  net.ipv4.tcp_syncookies:
+    value: "1"
+  net.ipv4.conf.all.accept_source_route:
+    value: "0"
+  net.ipv4.conf.all.accept_redirects:
+    value: "0"
+  net.ipv4.conf.all.secure_redirects:
+    value: "0"
+  net.ipv4.conf.all.rp_filter:
+    value: "1"
+  net.ipv4.conf.all.log_martians:
+    value: "1"
+  net.ipv4.icmp_echo_ignore_broadcasts:
+    value: "1"
+  net.ipv4.icmp_ignore_bogus_error_responses:
+    value: "1"
+
+service:
+  firewalld:
+    enabled: true
+    running: true
+
+command:
+  "firewall-cmd --get-default-zone":
+    exit-status: 0
+    stdout:
+      - "drop"
+
+  "firewall-cmd --zone=drop --query-service=ssh":
+    exit-status: 0
+
+  "modprobe dccp":
+    exit-status: 1
+  "modprobe sctp":
+    exit-status: 1
+  "modprobe rds":
+    exit-status: 1
+  "modprobe tipc":
+    exit-status: 1

@@ -1,0 +1,38 @@
+## Verifies the kernel role (CIS 1.1.1.x, 1.1.8.x, 1.1.9, 1.5.x).
+kernel-param:
+  kernel.randomize_va_space:
+    value: "2"
+  kernel.yama.ptrace_scope:
+    value: "1"
+  fs.suid_dumpable:
+    value: "0"
+
+file:
+  /etc/modprobe.d/hardening-blacklist.conf:
+    exists: true
+    owner: root
+    group: root
+
+command:
+  "modprobe cramfs":
+    exit-status: 1
+  "modprobe freevxfs":
+    exit-status: 1
+  "modprobe jffs2":
+    exit-status: 1
+  "modprobe hfs":
+    exit-status: 1
+  "modprobe hfsplus":
+    exit-status: 1
+  "modprobe udf":
+    exit-status: 1
+  "modprobe usb-storage":
+    exit-status: 1
+  "lsmod | grep -w cramfs":
+    exit-status: 1
+  "findmnt -no OPTIONS /dev/shm":
+    exit-status: 0
+    stdout:
+      - "noexec"
+      - "nodev"
+      - "nosuid"

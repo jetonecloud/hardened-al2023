@@ -1,0 +1,34 @@
+## Verifies the auditd role (CIS 5.2.1.x-5.2.4.x).
+service:
+  auditd:
+    enabled: true
+    running: true
+
+file:
+  /etc/audit/auditd.conf:
+    exists: true
+    owner: root
+    group: root
+  /etc/audit/rules.d/hardening.rules:
+    exists: true
+    owner: root
+    group: root
+    filemode: "0600"
+
+command:
+  "grep -q '^max_log_file_action = keep_logs' /etc/audit/auditd.conf":
+    exit-status: 0
+  "grep -q '^admin_space_left_action = halt' /etc/audit/auditd.conf":
+    exit-status: 0
+  "auditctl -s":
+    exit-status: 0
+    stdout:
+      - "enabled 2"
+  "auditctl -l | grep -q identity":
+    exit-status: 0
+  "auditctl -l | grep -q time-change":
+    exit-status: 0
+  "auditctl -l | grep -q privileged":
+    exit-status: 0
+  "auditctl -l | grep -q delete":
+    exit-status: 0

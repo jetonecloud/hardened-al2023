@@ -1,0 +1,25 @@
+## Advisory suite: informational only, never fails the Packer build
+## (see packer/scripts/run-goss.sh). Covers controls this project
+## deliberately does not auto-remediate - see docs/controls.md for why
+## each one is here instead of in a blocking suite.
+command:
+  # CIS 6.1.9 - world-writable files outside known sticky dirs
+  # (/tmp, /var/tmp, /dev/shm are intentionally 1777 and excluded).
+  "find / -xdev -type f -perm -0002 2>/dev/null | grep -v -E '^/(tmp|var/tmp|dev/shm)/'":
+    exit-status: 1
+
+  # CIS 6.1.11/6.1.12 - unowned or ungrouped files.
+  "find / -xdev \\( -nouser -o -nogroup \\) 2>/dev/null":
+    exit-status: 1
+
+  # CIS 1.6.1.4 - SELinux enforcing (not enabled by default - see
+  # docs/controls.md; reported here, not enforced).
+  "getenforce":
+    stdout:
+      - "Enforcing"
+
+  # CIS 4.4.2/4.5.2 - account lockout via pam_faillock (not enabled by
+  # default - requires an authselect custom profile; see
+  # docs/controls.md).
+  "grep -r pam_faillock /etc/pam.d/system-auth /etc/pam.d/password-auth":
+    exit-status: 0

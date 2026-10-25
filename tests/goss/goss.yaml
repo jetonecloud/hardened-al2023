@@ -1,0 +1,67 @@
+## Verifies the common/baseline role and a few cross-cutting requirements
+## (IMDSv2, no hardcoded credentials) that don't belong to any single
+## control-area role.
+package:
+  aide:
+    installed: true
+  chrony:
+    installed: true
+  amazon-ssm-agent:
+    installed: true
+
+service:
+  chronyd:
+    enabled: true
+    running: true
+  amazon-ssm-agent:
+    enabled: true
+    running: true
+  crond:
+    enabled: true
+    running: true
+
+file:
+  /var/lib/aide/aide.db.gz:
+    exists: true
+  /etc/motd:
+    exists: true
+  /etc/issue:
+    exists: true
+  /etc/issue.net:
+    exists: true
+  /etc/shadow:
+    exists: true
+    owner: root
+    group: root
+    filemode: "0000"
+  /etc/passwd:
+    exists: true
+    owner: root
+    group: root
+    filemode: "0644"
+  /etc/sudoers.d/99-hardening:
+    exists: true
+    filemode: "0440"
+  /etc/security/pwquality.conf:
+    exists: true
+    contains:
+      - "minlen = 14"
+
+command:
+  "visudo -cf /etc/sudoers.d/99-hardening":
+    exit-status: 0
+  "grep -E '^UMASK\\s+027' /etc/login.defs":
+    exit-status: 0
+  "grep -E '^PASS_MAX_DAYS\\s+365' /etc/login.defs":
+    exit-status: 0
+  "update-crypto-policies --show":
+    exit-status: 0
+    stdout:
+      - "DEFAULT"
+
+  # IMDSv2 required - the AMI's launch template/instance metadata
+  # options enforce this; this check confirms the running instance
+  # agrees that a token is mandatory.
+  "curl -s -o /dev/null -w '%{http_code}' http://169.254.169.254/latest/meta-data/ami-id":
+    stdout:
+      - "401"

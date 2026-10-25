@@ -1,0 +1,22 @@
+## Verifies the logging role (CIS 5.1.1.x, 5.1.2.x, 5.3, + CloudWatch Agent).
+service:
+  rsyslog:
+    enabled: true
+    running: true
+  amazon-cloudwatch-agent:
+    enabled: true
+
+file:
+  /etc/systemd/journald.conf.d/00-hardening.conf:
+    exists: true
+    contains:
+      - "Storage=persistent"
+      - "Compress=yes"
+  /etc/rsyslog.d/00-hardening.conf:
+    exists: true
+  /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json:
+    exists: true
+
+command:
+  "python3 -c \"import json; json.load(open('/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json'))\"":
+    exit-status: 0
