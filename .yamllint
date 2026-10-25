@@ -1,0 +1,23 @@
+---
+extends: default
+
+yaml-files:
+  - "*.yml"
+  - "*.yaml"
+  - ".yamllint"
+
+rules:
+  line-length:
+    max: 160
+    level: warning
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: false
+  braces:
+    max-spaces-inside: 1
+  truthy:
+    allowed-values: ["true", "false", "yes", "no"]
+
+ignore: |
+  .ansible/
+  packer_cache/

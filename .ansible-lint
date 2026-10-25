@@ -1,0 +1,18 @@
+---
+profile: production
+
+exclude_paths:
+  - .github/
+  - tests/
+  - .cache/
+
+skip_list:
+  # We intentionally pin package versions by name only (AL2023 dnf repos
+  # already pin major versions); package-latest is not useful here.
+  - package-latest
+
+warn_list:
+  - experimental
+  - yaml[line-length]
+
+use_default_rules: true

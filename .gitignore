@@ -1,0 +1,33 @@
+# Packer
+packer/*.pkrvars.hcl
+!packer/example.pkrvars.hcl
+packer_cache/
+*.pkr.hcl.bak
+manifest.json
+crash.log
+
+# Build artifacts / reports
+artifacts/
+reports/
+*.log
+
+# Ansible
+*.retry
+.ansible/
+
+# Python (ansible-lint / pre-commit venvs)
+.venv/
+__pycache__/
+*.pyc
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Secrets - never commit these
+*.pem
+*.ppk
+.env
+.env.*
