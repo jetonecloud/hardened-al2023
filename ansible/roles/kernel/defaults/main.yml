@@ -1,0 +1,28 @@
+---
+# CIS Amazon Linux 2023 sections 1.1.1 (filesystem modules), 1.1.8
+# (/dev/shm), 1.1.9 (USB storage) and 1.5 (process/kernel hardening).
+
+# CIS 1.1.1.1-1.1.1.6. NOTE: upstream community control lists for
+# RHEL-family CIS benchmarks sometimes also list the `vfat` module.
+# We deliberately do NOT blacklist it here: EC2 instances that boot via
+# UEFI mount their EFI system partition (/boot/efi) as vfat, and
+# disabling the module risks an unbootable AMI. See docs/controls.md.
+kernel_blacklist_modules:
+  - cramfs
+  - freevxfs
+  - jffs2
+  - hfs
+  - hfsplus
+  - udf
+  - usb-storage
+
+# CIS 1.5.1
+kernel_randomize_va_space: 2
+
+# CIS 1.5.3 - Yama ptrace scope. 1 = a process may only PTRACE_ATTACH to
+# its own descendants (standard hardening baseline; 3 is more
+# restrictive still but breaks more debugging/profiling tooling).
+kernel_yama_ptrace_scope: 1
+
+# Core dump restriction (paired with fs.suid_dumpable=0 below).
+kernel_disable_core_dumps: true

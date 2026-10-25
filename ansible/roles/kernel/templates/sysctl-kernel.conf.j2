@@ -1,0 +1,11 @@
+## {{ ansible_managed }}
+## CIS 1.5.x - process/kernel hardening.
+
+# CIS 1.5.1 - address space layout randomization
+kernel.randomize_va_space = {{ kernel_randomize_va_space }}
+
+# CIS 1.5.3 - restrict ptrace to descendant processes only
+kernel.yama.ptrace_scope = {{ kernel_yama_ptrace_scope }}
+
+# Disable SUID process core dumps (paired with limits.conf/coredump.conf)
+fs.suid_dumpable = 0

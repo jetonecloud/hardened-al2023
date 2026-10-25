@@ -1,0 +1,7 @@
+## {{ ansible_managed }}
+## CIS 1.1.1.1-1.1.1.6, 1.1.9: disable loading of unused filesystem and
+## storage kernel modules.
+{% for mod in kernel_blacklist_modules %}
+install {{ mod }} /bin/false
+blacklist {{ mod }}
+{% endfor %}

@@ -1,0 +1,57 @@
+---
+# CIS 1.1.1.1-1.1.1.6, 1.1.8.x, 1.1.9, 1.5.x - kernel module and sysctl
+# hardening. See docs/controls.md for 1.1.1.7 (vfat) and 1.5.4
+# (unprivileged user namespaces), both deliberately skipped.
+- name: CIS 1.1.1.x/1.1.9 | Blacklist unused filesystem and storage kernel modules
+  ansible.builtin.template:
+    src: modprobe-blacklist.conf.j2
+    dest: /etc/modprobe.d/hardening-blacklist.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: CIS 1.1.1.x/1.1.9 | Ensure blacklisted modules are not currently loaded
+  ansible.builtin.command: "modprobe -r {{ item }}"
+  loop: "{{ kernel_blacklist_modules }}"
+  register: _modprobe_remove
+  changed_when: _modprobe_remove.rc == 0
+  failed_when: false
+
+- name: CIS 1.5.x | Apply kernel process-hardening sysctl settings
+  ansible.builtin.template:
+    src: sysctl-kernel.conf.j2
+    dest: /etc/sysctl.d/60-hardening-kernel.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload sysctl
+
+- name: Core dumps | Disable via limits.conf
+  ansible.builtin.copy:
+    dest: /etc/security/limits.d/99-no-coredumps.conf
+    content: |
+      * hard core 0
+    owner: root
+    group: root
+    mode: "0644"
+  when: kernel_disable_core_dumps
+
+- name: Core dumps | Disable systemd-coredump storage
+  ansible.builtin.copy:
+    dest: /etc/systemd/coredump.conf.d/99-hardening.conf
+    content: |
+      [Coredump]
+      Storage=none
+      ProcessSizeMax=0
+    owner: root
+    group: root
+    mode: "0644"
+  when: kernel_disable_core_dumps
+
+- name: CIS 1.1.8.1-1.1.8.4 | Ensure /dev/shm is mounted with noexec,nodev,nosuid
+  ansible.posix.mount:
+    path: /dev/shm
+    src: tmpfs
+    fstype: tmpfs
+    opts: "defaults,noexec,nodev,nosuid"
+    state: mounted
