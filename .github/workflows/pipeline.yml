@@ -1,0 +1,287 @@
+---
+name: hardened-al2023
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+    paths:
+      - "packer/**"
+      - "ansible/**"
+      - "tests/**"
+      - ".github/workflows/pipeline.yml"
+  pull_request:
+    paths:
+      - "packer/**"
+      - "ansible/**"
+      - "tests/**"
+      - ".github/workflows/pipeline.yml"
+  schedule:
+    # Weekly rebuild: this project patches by rebuilding the AMI rather
+    # than mutating running instances (see docs/controls.md, CIS 1.2.x).
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      build_version:
+        description: "Override the AMI version tag (defaults to an auto-generated value)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hardened-al2023-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  PACKER_VERSION: "1.11.2"
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ansible-lint and yamllint
+        run: pip install --disable-pip-version-check "ansible-lint>=6.22" "ansible>=9" yamllint
+
+      - name: yamllint
+        run: yamllint .
+
+      - name: ansible-lint
+        run: ansible-lint ansible/playbook.yml
+
+      - uses: hashicorp/setup-packer@v3.4.0
+        with:
+          version: ${{ env.PACKER_VERSION }}
+
+      - name: packer fmt -check
+        working-directory: packer
+        run: packer fmt -check -recursive .
+
+      - name: packer init
+        working-directory: packer
+        run: packer init al2023.pkr.hcl
+
+      - name: Configure AWS credentials (OIDC, read-only validation)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+        if: ${{ vars.AWS_ROLE_ARN != '' }}
+
+      - name: packer validate
+        if: ${{ vars.AWS_ROLE_ARN != '' }}
+        working-directory: packer
+        run: |
+          packer validate \
+            -var "aws_region=${AWS_REGION}" \
+            -var "vpc_id=${{ vars.PACKER_VPC_ID }}" \
+            -var "subnet_id=${{ vars.PACKER_SUBNET_ID }}" \
+            al2023.pkr.hcl
+
+  build:
+    name: build
+    needs: lint
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      ami_id: ${{ steps.manifest.outputs.ami_id }}
+      ami_region: ${{ steps.manifest.outputs.ami_region }}
+      build_version: ${{ steps.version.outputs.build_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine build version
+        id: version
+        run: |
+          if [ -n "${{ inputs.build_version }}" ]; then
+            echo "build_version=${{ inputs.build_version }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "build_version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          elif [ "${GITHUB_EVENT_NAME}" = "schedule" ]; then
+            echo "build_version=scheduled-$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_version=0.0.0-dev.${GITHUB_RUN_NUMBER}+${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: hashicorp/setup-packer@v3.4.0
+        with:
+          version: ${{ env.PACKER_VERSION }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install --disable-pip-version-check "ansible>=9"
+
+      - name: Install Ansible Galaxy collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: packer init
+        working-directory: packer
+        run: packer init al2023.pkr.hcl
+
+      - name: packer build
+        working-directory: packer
+        run: |
+          packer build \
+            -var "aws_region=${AWS_REGION}" \
+            -var "vpc_id=${{ vars.PACKER_VPC_ID }}" \
+            -var "subnet_id=${{ vars.PACKER_SUBNET_ID }}" \
+            -var "kms_key_id=${{ vars.PACKER_KMS_KEY_ID }}" \
+            -var "build_version=${{ steps.version.outputs.build_version }}" \
+            -var "extra_tags={\"GitSha\":\"${GITHUB_SHA}\",\"Workflow\":\"${GITHUB_WORKFLOW}\",\"RunId\":\"${GITHUB_RUN_ID}\"}" \
+            al2023.pkr.hcl
+
+      - name: Extract AMI ID from manifest
+        id: manifest
+        working-directory: reports
+        run: |
+          AMI_ID=$(jq -r '.builds[-1].artifact_id' manifest.json | cut -d: -f2)
+          echo "ami_id=${AMI_ID}" >> "$GITHUB_OUTPUT"
+          echo "ami_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
+          echo "Built AMI: ${AMI_ID} (${AWS_REGION})" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardened-al2023-reports
+          path: reports/
+          retention-days: 90
+
+  test:
+    name: test (Goss)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hardened-al2023-reports
+          path: reports
+
+      - name: Evaluate Goss results
+        run: |
+          TOTAL_FAILED=$(jq '[.[].summary["failed-count"]] | add // 0' reports/goss-results.json)
+          TOTAL_TESTS=$(jq '[.[].summary["test-count"]] | add // 0' reports/goss-results.json)
+          echo "Goss: ${TOTAL_TESTS} tests, ${TOTAL_FAILED} failed"
+          if [ "${TOTAL_FAILED}" -gt 0 ]; then
+            echo "CRITICAL control failures detected - failing the pipeline."
+            exit 1
+          fi
+
+      - name: Write summary
+        if: always()
+        run: |
+          echo "### Goss compliance results" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          head -c 2000 reports/goss-results.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  scan:
+    name: scan (Trivy)
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hardened-al2023-reports
+          path: reports
+
+      - name: Evaluate Trivy results
+        run: |
+          CRITICAL=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' reports/trivy-report.json)
+          HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' reports/trivy-report.json)
+          SECRETS=$(jq '[.Results[]?.Secrets[]?] | length' reports/trivy-report.json)
+
+          {
+            echo "### Trivy scan results"
+            echo "- CRITICAL vulnerabilities: ${CRITICAL}"
+            echo "- HIGH vulnerabilities: ${HIGH}"
+            echo "- Secrets found: ${SECRETS}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "critical=${CRITICAL}" >> "$GITHUB_ENV"
+          echo "secrets=${SECRETS}" >> "$GITHUB_ENV"
+
+      - name: Fail on CRITICAL vulnerabilities or exposed secrets
+        run: |
+          if [ "${critical}" -gt 0 ] || [ "${secrets}" -gt 0 ]; then
+            echo "CRITICAL vulnerabilities or secrets found in the built image - failing the pipeline."
+            exit 1
+          fi
+
+  publish:
+    name: publish
+    needs: [test, scan]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hardened-al2023-reports
+          path: reports
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Point the "latest" SSM parameter at the new AMI
+        run: |
+          AMI_ID=$(jq -r '.builds[-1].artifact_id' reports/manifest.json | cut -d: -f2)
+          VERSION=$(jq -r '.builds[-1].custom_data.build_version' reports/manifest.json)
+          aws ssm put-parameter \
+            --name "/hardened-al2023/${AWS_REGION}/latest" \
+            --type String \
+            --value "${AMI_ID}" \
+            --overwrite
+          aws ec2 create-tags --resources "${AMI_ID}" --tags "Key=PublishedVersion,Value=${VERSION}"
+          {
+            echo "### Published"
+            echo "- AMI: \`${AMI_ID}\`"
+            echo "- Version: \`${VERSION}\`"
+            echo "- SSM pointer: \`/hardened-al2023/${AWS_REGION}/latest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create a GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            reports/manifest.json \
+            reports/goss-results.json \
+            reports/trivy-report.json
