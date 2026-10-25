@@ -36,3 +36,10 @@ command:
       - "noexec"
       - "nodev"
       - "nosuid"
+
+  # CIS 1.5.2 - NX/DEP is a hardware+kernel default on every AWS
+  # x86_64/arm64 instance type, not something this role configures.
+  # On x86_64 this asserts the CPU-reported `nx` flag; arm64's
+  # equivalent (XN) has no cpuinfo flag to check, so it passes through.
+  "sh -c 'if [ \"$(uname -m)\" = \"x86_64\" ]; then grep -qw nx /proc/cpuinfo; else true; fi'":
+    exit-status: 0
