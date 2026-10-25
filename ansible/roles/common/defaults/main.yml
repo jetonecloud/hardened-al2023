@@ -1,0 +1,79 @@
+---
+# Baseline/system-wide hardening toggles. Defaults aim for a safe,
+# broadly-compatible posture; see docs/controls.md for what's skipped
+# and why.
+
+common_timezone: "UTC"
+
+# CIS 1.2.2-1.2.4: live auto-patching is intentionally OFF by default.
+# This project assumes an immutable-AMI workflow: you patch by rebuilding
+# the AMI (the pipeline can do this on a schedule - see
+# .github/workflows/pipeline.yml) and replacing running instances, not by
+# mutating them in place. Flip this on if your fleet instead relies on
+# in-place patching.
+common_enable_dnf_automatic: false
+common_dnf_automatic_apply_updates: false
+
+# CIS 2.1.x: chrony time sync.
+common_chrony_servers:
+  - "169.254.169.123"   # Amazon Time Sync Service (link-local, no WAN egress needed)
+
+# CIS 1.3.x: AIDE file integrity monitoring.
+common_aide_cron_hour: 5
+common_aide_cron_minute: 0
+
+# CIS 1.9: system-wide crypto policy. DEFAULT disables legacy/weak
+# algorithms without requiring a reboot into FIPS mode.
+common_crypto_policy: "DEFAULT"
+
+# CIS 2.2.x / 2.3.x / 2.4: packages removed if present (defense in depth;
+# none of these ship on the stock minimal AL2023 AMI).
+common_unwanted_packages:
+  - avahi
+  - cups
+  - dhcp-server
+  - bind
+  - dnsmasq
+  - vsftpd
+  - tftp-server
+  - httpd
+  - nginx
+  - dovecot
+  - cyrus-imapd
+  - net-snmp
+  - telnet-server
+  - samba
+  - nfs-utils
+  - rpcbind
+  - rsync-daemon
+  - squid
+  - telnet
+  - openldap-clients
+  - ftp
+
+# CIS 4.6.1.x: password aging.
+common_pass_max_days: 365
+common_pass_min_days: 1
+common_pass_warn_age: 7
+common_pass_inactive: 30
+
+# CIS 4.6.3/4.6.4: idle shell timeout, in seconds.
+common_shell_timeout: 900
+
+# CIS 4.6.5/4.6.6: default umask.
+common_umask: "027"
+
+# CIS 4.5.1: pwquality.conf
+common_pwquality:
+  minlen: 14
+  minclass: 4
+  maxrepeat: 3
+  maxclassrepeat: 4
+  dcredit: -1
+  ucredit: -1
+  lcredit: -1
+  ocredit: -1
+
+# System accounts (UID < this) with an interactive shell get it swapped
+# to nologin. root is always excluded.
+common_system_uid_max: 1000

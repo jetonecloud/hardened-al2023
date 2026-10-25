@@ -1,0 +1,41 @@
+---
+# CIS 1.2.1 - keep the image fully patched at build time. Live auto-patching
+# is a separate, opt-in concern (see common_enable_dnf_automatic).
+- name: CIS 1.2.1 | Update all packages to latest available
+  ansible.builtin.dnf:
+    name: "*"
+    state: latest   # noqa package-latest
+    update_cache: true
+
+- name: CIS 1.9 | Ensure system-wide crypto policy is not LEGACY
+  ansible.builtin.command: update-crypto-policies --set {{ common_crypto_policy }}
+  register: _crypto_policy
+  changed_when: "'is already set' not in _crypto_policy.stdout"
+
+- name: Install dnf-automatic (present either way; only enabled if opted in)
+  ansible.builtin.dnf:
+    name: dnf-automatic
+    state: present
+  when: common_enable_dnf_automatic
+
+- name: CIS 1.2.2-1.2.4 | Configure dnf-automatic
+  ansible.builtin.lineinfile:
+    path: /etc/dnf/automatic.conf
+    regexp: "^apply_updates\\s*="
+    line: "apply_updates = {{ common_dnf_automatic_apply_updates | ternary('yes', 'no') }}"
+  when: common_enable_dnf_automatic
+
+- name: CIS 1.2.2-1.2.4 | Enable dnf-automatic timer
+  ansible.builtin.systemd_service:
+    name: dnf-automatic.timer
+    enabled: true
+    state: started
+  when: common_enable_dnf_automatic
+
+- name: "CIS 1.2.2-1.2.4 | Ensure dnf-automatic timer disabled (default: rebuild-to-patch model)"
+  ansible.builtin.systemd_service:
+    name: dnf-automatic.timer
+    enabled: false
+    state: stopped
+  when: not common_enable_dnf_automatic
+  failed_when: false

@@ -1,0 +1,35 @@
+---
+# CIS 4.3.1-4.3.6 - privilege escalation hardening. ec2-user's own
+# passwordless sudo entry (/etc/sudoers.d/ec2-user, shipped by the base
+# AMI) is untouched - these settings constrain HOW sudo/su behave, not
+# who can use them.
+- name: CIS 4.3.1 | Ensure sudo is installed
+  ansible.builtin.dnf:
+    name: sudo
+    state: present
+
+- name: CIS 4.3.2-4.3.5 | Harden sudo defaults
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/99-hardening
+    content: |
+      Defaults use_pty
+      Defaults logfile="/var/log/sudo.log"
+      Defaults timestamp_timeout=15
+      Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: CIS 4.3.6 | Restrict direct use of su to the wheel group
+  ansible.builtin.lineinfile:
+    path: /etc/pam.d/su
+    regexp: "^#?\\s*auth\\s+required\\s+pam_wheel.so\\s+use_uid"
+    line: "auth             required        pam_wheel.so use_uid group=wheel"
+    insertafter: "^auth\\s+sufficient\\s+pam_rootok.so"
+    state: present
+
+- name: CIS 4.3.6 | Ensure the wheel group exists
+  ansible.builtin.group:
+    name: wheel
+    state: present

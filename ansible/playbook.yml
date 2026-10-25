@@ -1,0 +1,30 @@
+---
+# hardened-al2023 hardening playbook.
+#
+# Applies CIS Amazon Linux 2023 Level 1 -aligned controls, grouped into
+# roles by control area. Roles run in an order where later roles can
+# safely assume earlier ones have already run (e.g. "logging" assumes
+# "auditd" already installed the audit daemon).
+- name: Harden Amazon Linux 2023
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Fail fast if this isn't Amazon Linux 2023
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Amazon"
+          - ansible_distribution_major_version is version('2023', '==')
+        fail_msg: >-
+          This playbook only supports Amazon Linux 2023. Detected
+          {{ ansible_distribution }} {{ ansible_distribution_version }}.
+        quiet: true
+
+  roles:
+    - role: common
+    - role: ssh
+    - role: kernel
+    - role: network
+    - role: auditd
+    - role: logging

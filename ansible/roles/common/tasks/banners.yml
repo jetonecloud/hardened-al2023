@@ -1,0 +1,30 @@
+---
+# CIS 1.7.1-1.7.3, 1.7.5 - warning banners for local/remote login and MOTD.
+# CIS 1.7.4/1.7.6 (banner wording "authorized" by the org) is an
+# organizational/legal review step, not a technical control - see
+# docs/controls.md.
+# CIS 1.8 (GDM banner) does not apply: this is a headless AMI with no
+# graphical login manager.
+- name: CIS 1.7.1/1.7.3 | Configure /etc/issue (local login banner)
+  ansible.builtin.template:
+    src: banner.j2
+    dest: /etc/issue
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: CIS 1.7.2 | Configure /etc/issue.net (remote login banner)
+  ansible.builtin.template:
+    src: banner.j2
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: CIS 1.7.5 | Configure /etc/motd
+  ansible.builtin.template:
+    src: banner.j2
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: "0644"

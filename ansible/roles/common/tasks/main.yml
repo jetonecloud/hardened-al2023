@@ -1,0 +1,30 @@
+---
+- name: Include package baseline and update tasks
+  ansible.builtin.include_tasks: packages.yml
+
+- name: Include time synchronization tasks
+  ansible.builtin.include_tasks: chrony.yml
+
+- name: Include AIDE file integrity tasks
+  ansible.builtin.include_tasks: aide.yml
+
+- name: Include SSM agent tasks
+  ansible.builtin.include_tasks: ssm.yml
+
+- name: Include warning banner tasks
+  ansible.builtin.include_tasks: banners.yml
+
+- name: Include unused service/client removal tasks
+  ansible.builtin.include_tasks: services.yml
+
+- name: Include cron/at access control tasks
+  ansible.builtin.include_tasks: cron.yml
+
+- name: Include sudo hardening tasks
+  ansible.builtin.include_tasks: sudo.yml
+
+- name: Include password and account policy tasks
+  ansible.builtin.include_tasks: password_policy.yml
+
+- name: Include sensitive file permission tasks
+  ansible.builtin.include_tasks: file_permissions.yml

@@ -1,0 +1,21 @@
+---
+# CIS 2.1.1-2.1.2 - time sync is a prerequisite for trustworthy audit logs.
+- name: CIS 2.1.1 | Install chrony
+  ansible.builtin.dnf:
+    name: chrony
+    state: present
+
+- name: CIS 2.1.2 | Configure chrony to use the Amazon Time Sync Service
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chronyd
+
+- name: CIS 2.1.1 | Enable and start chronyd
+  ansible.builtin.systemd_service:
+    name: chronyd
+    enabled: true
+    state: started

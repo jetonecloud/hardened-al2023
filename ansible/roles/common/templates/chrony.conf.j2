@@ -1,0 +1,13 @@
+{# CIS 2.1.2: use authenticated, tightly-scoped time sources only. #}
+{% for server in common_chrony_servers %}
+server {{ server }} iburst
+{% endfor %}
+
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+logdir /var/log/chrony
+
+# Do not act as a time server for other hosts.
+port 0
+cmdport 0

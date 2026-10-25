@@ -1,0 +1,14 @@
+---
+# AWS Systems Manager agent. AL2023's official AMI ships this
+# preinstalled; we still assert it explicitly so the build doesn't
+# silently depend on an undocumented base-image default.
+- name: Ensure amazon-ssm-agent is installed
+  ansible.builtin.dnf:
+    name: amazon-ssm-agent
+    state: present
+
+- name: Enable and start amazon-ssm-agent
+  ansible.builtin.systemd_service:
+    name: amazon-ssm-agent
+    enabled: true
+    state: started

@@ -1,0 +1,13 @@
+---
+# CIS 2.2.x / 2.3.x / 2.4 - remove special-purpose server/client packages
+# that have no business being on a general-purpose golden image. None of
+# these ship on the stock minimal AL2023 AMI; this is defense in depth
+# against drift in whatever base/custom image feeds the build.
+#
+# Deliberately NOT touched: the DHCP *client* (required for EC2 network
+# config), NTP/chrony (we configure it, see chrony.yml), and SSH (we
+# harden it, see the ssh role).
+- name: CIS 2.2.x/2.3.x/2.4 | Remove unneeded server and client packages
+  ansible.builtin.dnf:
+    name: "{{ common_unwanted_packages }}"
+    state: absent

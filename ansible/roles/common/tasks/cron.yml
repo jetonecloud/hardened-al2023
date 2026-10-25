@@ -1,0 +1,56 @@
+---
+# CIS 4.1.1-4.1.9 - job scheduler hardening.
+- name: CIS 4.1.1 | Enable and start crond
+  ansible.builtin.systemd_service:
+    name: crond
+    enabled: true
+    state: started
+
+- name: CIS 4.1.2-4.1.7 | Set strict ownership/permissions on cron directories and crontab
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - /etc/cron.d
+    - /etc/cron.daily
+    - /etc/cron.hourly
+    - /etc/cron.monthly
+    - /etc/cron.weekly
+  failed_when: false
+
+- name: CIS 4.1.7 | Set ownership/permissions on /etc/crontab
+  ansible.builtin.file:
+    path: /etc/crontab
+    owner: root
+    group: root
+    mode: "0600"
+  failed_when: false
+
+- name: CIS 4.1.8 | Remove /etc/cron.deny if present
+  ansible.builtin.file:
+    path: /etc/cron.deny
+    state: absent
+
+- name: CIS 4.1.8 | Restrict cron to root via /etc/cron.allow
+  ansible.builtin.copy:
+    dest: /etc/cron.allow
+    content: "root\n"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: CIS 4.1.9 | Remove /etc/at.deny if present
+  ansible.builtin.file:
+    path: /etc/at.deny
+    state: absent
+
+- name: CIS 4.1.9 | Restrict at to root via /etc/at.allow
+  ansible.builtin.copy:
+    dest: /etc/at.allow
+    content: "root\n"
+    owner: root
+    group: root
+    mode: "0600"
+  failed_when: false

@@ -1,0 +1,6 @@
+---
+# Galaxy collections used by the hardening roles.
+# Install with: ansible-galaxy collection install -r ansible/requirements.yml
+collections:
+  - name: ansible.posix
+    version: ">=1.5.4"

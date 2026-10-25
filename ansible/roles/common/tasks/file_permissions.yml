@@ -1,0 +1,27 @@
+---
+# CIS 6.1.1-6.1.8 - ownership/permissions on core identity files.
+#
+# CIS 6.1.9-6.1.12 (no world-writable, unowned, ungrouped or stray SGID
+# files anywhere on the filesystem) are audit-only here: a blind,
+# recursive chmod/chown across the whole filesystem at build time is how
+# you accidentally break package-managed files or intentionally
+# world-writable sticky directories like /tmp. The Goss advisory suite
+# reports on these; a human reviews and fixes findings deliberately.
+- name: CIS 6.1.1-6.1.8 | Set ownership and permissions on identity files
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: /etc/passwd, owner: root, group: root, mode: "0644" }
+    - { path: /etc/passwd-, owner: root, group: root, mode: "0644" }
+    - { path: /etc/group, owner: root, group: root, mode: "0644" }
+    - { path: /etc/group-, owner: root, group: root, mode: "0644" }
+    - { path: /etc/shadow, owner: root, group: root, mode: "0000" }
+    - { path: /etc/shadow-, owner: root, group: root, mode: "0000" }
+    - { path: /etc/gshadow, owner: root, group: root, mode: "0000" }
+    - { path: /etc/gshadow-, owner: root, group: root, mode: "0000" }
+  loop_control:
+    label: "{{ item.path }}"
+  failed_when: false
